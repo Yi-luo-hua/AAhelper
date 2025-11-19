@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { IndividualExpense, ChatMessage, CalculatorState } from './types';
 import { parseReceiptImage, processChatCommand } from './services/geminiService';
 import { ReceiptList } from './components/ReceiptList';
@@ -17,9 +17,19 @@ function App() {
   
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingChat, setIsProcessingChat] = useState(false);
+  const [missingKey, setMissingKey] = useState(false);
+
+  // Check for API Key on mount
+  useEffect(() => {
+    // @ts-ignore - process.env.API_KEY is replaced by Vite at build time
+    if (!process.env.API_KEY) {
+      setMissingKey(true);
+    }
+  }, []);
 
   // Handle Receipt Upload - Sets Total and notifies user
   const handleFileUpload = useCallback(async (file: File) => {
+    if (missingKey) return;
     setIsAnalyzing(true);
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '正在扫描小票总额...', timestamp: Date.now() }]);
     
@@ -51,10 +61,11 @@ function App() {
       }
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [missingKey]);
 
   // Handle Chat Commands
   const handleSendMessage = useCallback(async (text: string) => {
+    if (missingKey) return;
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     
@@ -101,11 +112,36 @@ function App() {
     } finally {
         setIsProcessingChat(false);
     }
-  }, [totalBill, people, expenses]);
+  }, [totalBill, people, expenses, missingKey]);
 
   const handleRemoveExpense = (id: string) => {
       setExpenses(prev => prev.filter(e => e.id !== id));
   };
+
+  if (missingKey) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#f7f5f0] p-4">
+        <div className="bg-white p-8 rounded-lg shadow-xl border-2 border-red-500 max-w-md text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">未配置 API Key</h1>
+          <p className="text-slate-700 mb-6">
+            应用程序无法连接到 Google Gemini 服务。
+          </p>
+          <div className="text-left bg-slate-100 p-4 rounded text-sm space-y-2 mb-6">
+            <p>1. 去 <strong>Google AI Studio</strong> 获取 API Key。</p>
+            <p>2. 在 <strong>Vercel 项目设置</strong> 中添加环境变量：</p>
+            <code className="block bg-slate-200 p-2 rounded mt-1 font-mono">API_KEY=你的密钥</code>
+            <p>3. 重新部署项目。</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
+          >
+            刷新页面
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col md:flex-row p-4 gap-4 max-w-7xl mx-auto overflow-hidden">
