@@ -1,0 +1,5 @@
+{
+  "name": "Copy of AAhelper",
+  "description": "An intelligent split-screen bill splitting application. Upload a receipt to parse items automatically, then use natural language chat to assign costs and calculate shares in real-time.",
+  "requestFramePermissions": []
+}
